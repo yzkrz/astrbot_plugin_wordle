@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -c \"Get-Content wordlist\\\\5_letters_words.txt -TotalCount 5; Write-Host '---total---'; \\(Get-Content wordlist\\\\5_letters_words.txt | Measure-Object -Line\\).Lines\")",
+      "Bash(powershell -c \"\\(Get-Content dict\\\\classic.txt | Measure-Object -Line\\).Lines; \\(Get-Content dict\\\\all.txt | Measure-Object -Line\\).Lines\")",
+      "WebFetch(domain:www.chagushici.com)",
+      "Bash(curl -s -o nul -w \"HTTP: %{http_code}\\\\nSize: %{size_download}\\\\n\" -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" \"https://www.chagushici.com/chengyu/list/p-1\")",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" \"https://www.chagushici.com/chengyu/list/p-1\" -o e:\\\\Projects\\\\astrbot_plugin_wordle\\\\_test_page.html)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" \"https://www.chagushici.com/chengyu/list/p-1\" -o _test_page.html)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -b \"safe_token=ok\" \"https://www.chagushici.com/chengyu/list/p-1\" -o _test_page.html)",
+      "Bash(python -c \"import requests, bs4; print\\('deps ok'\\)\")",
+      "Bash(python fetch.py --start 1 --end 3)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('chengyu.json',encoding='utf-8'\\)\\); print\\('count:',len\\(d\\)\\); print\\('first:',json.dumps\\(d[0],ensure_ascii=False,indent=2\\)\\); print\\('last:',json.dumps\\(d[-1],ensure_ascii=False,indent=2\\)\\)\")",
+      "Bash(python fetch.py --start 2047 --end 2047 --merge-only)",
+      "Bash(python fetch.py --start 2047 --end 2047)",
+      "Bash(python fetch.py)",
+      "Bash(sort -t- -k2 -n)",
+      "Bash(python -c \"import json,collections; d=json.load\\(open\\('chengyu.json',encoding='utf-8'\\)\\); print\\('total:',len\\(d\\)\\); lens=collections.Counter\\(len\\(x['name']\\) for x in d\\); print\\('by char count:',dict\\(sorted\\(lens.items\\(\\)\\)\\)\\); print\\('missing pinyin:',sum\\(1 for x in d if not x['pinyin']\\)\\); print\\('missing expl:',sum\\(1 for x in d if not x['explanation']\\)\\); print\\('missing source:',sum\\(1 for x in d if not x['source']\\)\\)\")",
+      "Bash(python format.py)",
+      "Bash(python fetch.py --merge-only)",
+      "Bash(find . -type f \\\\\\( -name \"*.ttf\" -o -name \"*.otf\" -o -name \"*.ttc\" -o -name \"*.woff*\" \\\\\\))",
+      "Bash(ls .claude/)",
+      "Bash(python -c ' *)",
+      "Bash(python _smoke_handle.py)",
+      "Bash(python -c \"import json; d = json.load\\(open\\('data/chinese_idiom/chengyu.json', encoding='utf-8'\\)\\); print\\(list\\(d[0].keys\\(\\)\\)\\); print\\(d[0]\\)\")"
+    ]
+  }
+}

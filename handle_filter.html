@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>汉兜筛选器</title>
+<style>
+  :root {
+    --green: #1d9c9c;
+    --orange: #de7525;
+    --gray-bg: #f7f8f9;
+    --gray-fg: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+    color: #111;
+  }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  .hint { color: #666; font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+  .hint code { background: #eee; padding: 1px 6px; border-radius: 3px; font-family: Consolas, monospace; }
+  .status { color: #c00; margin-bottom: 12px; min-height: 18px; font-size: 13px; }
+  .ok { color: #1d9c9c !important; }
+  .file-input { margin-bottom: 16px; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+  .input-row input {
+    font-size: 18px; padding: 8px 12px; width: 220px;
+    border: 1px solid #ccc; border-radius: 4px;
+  }
+  .input-row button {
+    font-size: 15px; padding: 8px 16px; background: var(--green);
+    color: #fff; border: 0; border-radius: 4px; cursor: pointer;
+  }
+  .input-row button:hover { filter: brightness(1.1); }
+  .input-row .secondary { background: #888; }
+
+  .guess {
+    background: var(--gray-bg);
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .guess-grid {
+    display: grid;
+    grid-template-columns: 48px repeat(4, 78px);
+    gap: 4px;
+    align-items: center;
+  }
+  .label { font-size: 13px; color: #555; text-align: right; padding-right: 6px; }
+  .cell {
+    border: 1px solid #d0d4d8;
+    border-radius: 4px;
+    text-align: center;
+    padding: 6px 4px;
+    cursor: pointer;
+    user-select: none;
+    font-family: Consolas, monospace;
+    font-size: 14px;
+    background: #fff;
+    color: var(--gray-fg);
+    transition: background 0.1s;
+    min-height: 32px;
+  }
+  .cell.head {
+    cursor: default;
+    background: #fff;
+    color: #111;
+  }
+  .cell.head .ch { font-size: 20px; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+  .cell.head .py { font-size: 11px; color: #888; margin-top: 2px; }
+  .cell.s2 { background: var(--green); color: #fff; border-color: var(--green); }
+  .cell.s1 { background: var(--orange); color: #fff; border-color: var(--orange); }
+  .cell.s0 { background: #fff; color: var(--gray-fg); border-color: #d0d4d8; }
+  .cell:not(.head):hover { filter: brightness(0.95); }
+  .remove {
+    background: transparent; border: 1px solid #ccc;
+    border-radius: 4px; padding: 6px 14px; cursor: pointer; color: #c00;
+    font-size: 13px;
+  }
+  .remove:hover { background: #fee; }
+
+  .results { margin-top: 28px; border-top: 1px solid #eee; padding-top: 16px; }
+  .results h2 { font-size: 16px; margin: 0 0 12px; }
+  .results-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 4px 16px;
+    font-size: 14px;
+  }
+  .results-list .item { padding: 3px 0; line-height: 1.4; }
+  .results-list .name { font-weight: 500; }
+  .results-list .pinyin { color: #888; font-size: 12px; font-family: Consolas, monospace; margin-left: 6px; }
+  .truncate-note { color: #888; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>汉兜筛选器</h1>
+<div class="hint">
+  输入一个 4 字成语作为你的猜测，下方四行（字 / 声母 / 韵母 / 声调）逐格点击切换：白底=未在答案中，<span style="color:var(--orange)">橙</span>=存在但位置不对，<span style="color:var(--green)">绿</span>=位置正确。<br>
+  匹配规则与游戏一致（双遍扫描，含重复计数）。剩余候选会自动更新。
+</div>
+
+<div id="status" class="status"></div>
+
+<div id="file-input" class="file-input" style="display:none">
+  <label>未能自动加载，请手动选择 <code>chengyu.json</code>: <input type="file" id="file" accept=".json"></label>
+</div>
+
+<div class="input-row">
+  <input id="guess-input" type="text" placeholder="输入 4 字成语，回车添加" maxlength="4">
+  <button id="add-btn">添加猜测</button>
+  <button id="clear-btn" class="secondary">清空全部</button>
+</div>
+
+<div id="guesses"></div>
+
+<div class="results">
+  <h2>剩余候选：<span id="count">—</span></h2>
+  <div id="results" class="results-list"></div>
+  <div id="trunc" class="truncate-note"></div>
+</div>
+
+<script>
+const TONE_SUP = ['⁰', '¹', '²', '³', '⁴'];
+const DIMS = [['char', '字'], ['init', '声母'], ['final', '韵母'], ['tone', '声调']];
+
+let idioms = null;      // {name: [[ini, fin, tone], ...]}
+let idiomList = [];
+let guesses = [];       // [{word, fb: {char:[..], init:[..], final:[..], tone:[..]}}]
+
+const $ = id => document.getElementById(id);
+
+function setStatus(msg, ok = false) {
+  const el = $('status');
+  el.textContent = msg;
+  el.className = 'status' + (ok ? ' ok' : '');
+}
+
+async function loadIdioms() {
+  try {
+    const res = await fetch('./data/chinese_idiom/chengyu.json');
+    if (!res.ok) throw new Error(res.status);
+    setIdiomData(await res.json());
+  } catch (e) {
+    setStatus('自动加载词库失败，请手动选择 chengyu.json');
+    $('file-input').style.display = 'block';
+    $('file').addEventListener('change', async ev => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      try {
+        setIdiomData(JSON.parse(await f.text()));
+        $('file-input').style.display = 'none';
+      } catch (err) {
+        setStatus('解析失败: ' + err.message);
+      }
+    });
+  }
+}
+
+function setIdiomData(data) {
+  idioms = {};
+  for (const x of data) idioms[x.name] = x.pinyin;
+  idiomList = Object.keys(idioms);
+  setStatus(`已加载 ${idiomList.length} 条成语`, true);
+  applyFilter();
+}
+
+function match(guess, answer) {
+  const n = guess.length;
+  const fb = new Array(n).fill(0);
+  const counts = {};
+  for (let i = 0; i < n; i++) {
+    if (guess[i] === answer[i]) fb[i] = 2;
+    else counts[answer[i]] = (counts[answer[i]] || 0) + 1;
+  }
+  for (let i = 0; i < n; i++) {
+    if (fb[i] !== 2) {
+      const c = guess[i];
+      if ((counts[c] || 0) > 0) { fb[i] = 1; counts[c]--; }
+    }
+  }
+  return fb;
+}
+
+function computeFeedback(guessWord, answerWord) {
+  const gp = idioms[guessWord], ap = idioms[answerWord];
+  return {
+    char: match([...guessWord], [...answerWord]),
+    init: match(gp.map(p => p[0]), ap.map(p => p[0])),
+    final: match(gp.map(p => p[1]), ap.map(p => p[1])),
+    tone: match(gp.map(p => p[2]), ap.map(p => p[2])),
+  };
+}
+
+function fbEquals(a, b) {
+  for (const [k] of DIMS) {
+    for (let i = 0; i < 4; i++) if (a[k][i] !== b[k][i]) return false;
+  }
+  return true;
+}
+
+function addGuess() {
+  const word = $('guess-input').value.trim();
+  if (!idioms) { alert('词库尚未加载完毕'); return; }
+  if (word.length !== 4) { alert('请输入 4 个汉字'); return; }
+  if (!idioms[word]) { alert('该成语不在词库中'); return; }
+  guesses.push({
+    word,
+    fb: { char: [0,0,0,0], init: [0,0,0,0], final: [0,0,0,0], tone: [0,0,0,0] },
+  });
+  $('guess-input').value = '';
+  render();
+}
+
+function elem(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function cellText(key, py, ch) {
+  if (key === 'char') return ch;
+  if (key === 'init') return py[0] || '∅';
+  if (key === 'final') return py[1] || '∅';
+  return String(py[2]);
+}
+
+function renderGuesses() {
+  const root = $('guesses');
+  root.innerHTML = '';
+  guesses.forEach((g, gi) => {
+    const wrap = elem('div', 'guess');
+    const grid = elem('div', 'guess-grid');
+
+    grid.appendChild(elem('div', 'label', ''));
+    for (let i = 0; i < 4; i++) {
+      const py = idioms[g.word][i];
+      const sup = TONE_SUP[py[2]] ?? py[2];
+      const c = elem('div', 'cell head');
+      c.innerHTML = `<div class="ch">${g.word[i]}</div><div class="py">${py[0]}${py[1]}${sup}</div>`;
+      grid.appendChild(c);
+    }
+
+    for (const [key, label] of DIMS) {
+      grid.appendChild(elem('div', 'label', label));
+      for (let i = 0; i < 4; i++) {
+        const py = idioms[g.word][i];
+        const val = g.fb[key][i];
+        const c = elem('div', `cell s${val}`, cellText(key, py, g.word[i]));
+        c.onclick = () => { g.fb[key][i] = (val + 1) % 3; render(); };
+        grid.appendChild(c);
+      }
+    }
+
+    wrap.appendChild(grid);
+    const rm = elem('button', 'remove', '删除');
+    rm.onclick = () => { guesses.splice(gi, 1); render(); };
+    wrap.appendChild(rm);
+    root.appendChild(wrap);
+  });
+}
+
+function applyFilter() {
+  if (!idioms) { $('count').textContent = '—'; return; }
+  let candidates = idiomList;
+  for (const g of guesses) {
+    candidates = candidates.filter(cand => fbEquals(computeFeedback(g.word, cand), g.fb));
+  }
+  $('count').textContent = candidates.length;
+  const root = $('results');
+  root.innerHTML = '';
+  const LIMIT = 500;
+  const shown = candidates.slice(0, LIMIT);
+  for (const w of shown) {
+    const py = idioms[w].map(p => p[0] + p[1] + (TONE_SUP[p[2]] ?? p[2])).join(' ');
+    const d = elem('div', 'item');
+    d.innerHTML = `<span class="name">${w}</span><span class="pinyin">${py}</span>`;
+    root.appendChild(d);
+  }
+  $('trunc').textContent = candidates.length > LIMIT
+    ? `… 仅显示前 ${LIMIT} 条，共 ${candidates.length} 条`
+    : '';
+}
+
+function render() { renderGuesses(); applyFilter(); }
+
+$('add-btn').onclick = addGuess;
+$('clear-btn').onclick = () => { guesses = []; render(); };
+$('guess-input').addEventListener('keydown', e => { if (e.key === 'Enter') addGuess(); });
+
+loadIdioms();
+</script>
+</body>
+</html>

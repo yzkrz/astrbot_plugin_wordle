@@ -1,0 +1,6 @@
+name: astrbot_plugin_wordle_yzkrz
+desc: Astrbot Wordle 游戏
+help: 输入 `wordle [help]` 查看帮助
+version: v1.3.0
+author: yzkrz
+repo: https://github.com/yzkrz/astrbot_plugin_wordle
